@@ -4,6 +4,7 @@
   "private": true,
   "description": "Agora RTC token generation service for SpyHunt",
   "dependencies": {
-    "agora-token": "^2.0.3"
+    "agora-token": "^2.0.3",
+    "firebase-admin": "^14.1.0"
   }
 }

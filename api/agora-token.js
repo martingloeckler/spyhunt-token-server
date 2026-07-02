@@ -1,4 +1,16 @@
 const { RtcTokenBuilder, RtcRole } = require('agora-token');
+const admin = require('firebase-admin');
+
+// Firebase Admin – einmalig initialisieren (Vercel hält die Instanz zwischen Requests warm)
+if (!admin.apps.length) {
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!serviceAccountJson) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON Umgebungsvariable fehlt');
+  }
+  admin.initializeApp({
+    credential: admin.credential.cert(JSON.parse(serviceAccountJson)),
+  });
+}
 
 // Erlaubte Origins für CORS (Capacitor WebView)
 const ALLOWED_ORIGINS = [
@@ -19,7 +31,7 @@ function setCorsHeaders(req, res) {
 
   res.setHeader('Access-Control-Allow-Origin', allowed ? origin : '');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
 module.exports = async function handler(req, res) {
@@ -32,6 +44,19 @@ module.exports = async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  // Firebase ID Token verifizieren
+  const authHeader = req.headers.authorization ?? '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const idToken = authHeader.slice(7);
+  try {
+    await admin.auth().verifyIdToken(idToken);
+  } catch (err) {
+    console.error('[agora-token] Ungültiger Firebase ID Token:', err.code);
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const appId = process.env.AGORA_APP_ID;
