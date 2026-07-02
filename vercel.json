@@ -1,0 +1,9 @@
+{
+  "regions": ["fra1"],
+  "functions": {
+    "api/agora-token.js": {
+      "memory": 128,
+      "maxDuration": 5
+    }
+  }
+}
