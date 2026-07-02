@@ -1,15 +1,20 @@
 const { RtcTokenBuilder, RtcRole } = require('agora-token');
 const admin = require('firebase-admin');
 
-// Firebase Admin – einmalig initialisieren (Vercel hält die Instanz zwischen Requests warm)
-if (!admin.apps.length) {
+// Firebase Admin – lazy initialisieren innerhalb des Handlers (kein Top-Level-Crash)
+function getAdminApp() {
+  if (admin.apps.length) return admin.app();
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!serviceAccountJson) {
     throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON Umgebungsvariable fehlt');
   }
-  admin.initializeApp({
-    credential: admin.credential.cert(JSON.parse(serviceAccountJson)),
-  });
+  let cert;
+  try {
+    cert = JSON.parse(serviceAccountJson);
+  } catch {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON ist kein valides JSON');
+  }
+  return admin.initializeApp({ credential: admin.credential.cert(cert) });
 }
 
 // Erlaubte Origins für CORS (Capacitor WebView)
@@ -46,6 +51,15 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // Firebase Admin initialisieren
+  let firebaseApp;
+  try {
+    firebaseApp = getAdminApp();
+  } catch (err) {
+    console.error('[agora-token] Firebase Admin Init fehlgeschlagen:', err.message);
+    return res.status(500).json({ error: 'Server misconfigured', detail: err.message });
+  }
+
   // Firebase ID Token verifizieren
   const authHeader = req.headers.authorization ?? '';
   if (!authHeader.startsWith('Bearer ')) {
@@ -53,7 +67,7 @@ module.exports = async function handler(req, res) {
   }
   const idToken = authHeader.slice(7);
   try {
-    await admin.auth().verifyIdToken(idToken);
+    await firebaseApp.auth().verifyIdToken(idToken);
   } catch (err) {
     console.error('[agora-token] Ungültiger Firebase ID Token:', err.code);
     return res.status(401).json({ error: 'Unauthorized' });
