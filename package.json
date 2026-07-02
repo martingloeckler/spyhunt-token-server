@@ -1,0 +1,9 @@
+{
+  "name": "spyhunt-token-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agora RTC token generation service for SpyHunt",
+  "dependencies": {
+    "agora-token": "^2.0.3"
+  }
+}
