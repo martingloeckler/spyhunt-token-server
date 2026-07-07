@@ -5,6 +5,7 @@ const ALLOWED_ORIGINS = [
   'ionic://localhost',
   'http://localhost',
   'http://localhost:4200',
+  'https://localhost',
 ];
 
 const TOKEN_EXPIRE_SECONDS = 3600;
